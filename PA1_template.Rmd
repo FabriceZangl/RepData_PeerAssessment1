@@ -9,11 +9,13 @@ output:
 ## Loading and preprocessing the data
 First part of assignment 1 - Getting and Cleaning the data:
 ```{r}
-url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
-download.file(url, "Course5Assignment1.zip")
-unzip("Course5Assignment1.zip")
+setwd("C:/Users/zangl.f/Box Sync/private/Coursera/Data Science/Data Scientist Specialization/05 Reproducible Research/Assignments/RepData_PeerAssessment1/")
+#url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+#download.file(url, "Course5Assignment1.zip")
+#unzip("Course5Assignment1.zip")
 df <- read.csv("activity.csv", sep=",", na.strings = "NA", stringsAsFactors = F, colClasses = c(steps = "numeric", date = "character", interval = "numeric"))
 df$date <- as.Date(df$date, "%Y-%m-%d")
+df$steps <- as.double(df$steps)
 ```
 
 
@@ -24,16 +26,17 @@ Second part of assignment 1 - Reporting on the total number of steps:
 - plotting them into a histogram
 - reporting the mean and median of the number of steps
 ```{r}
+par(mfcol = c(1,2))
 pivot_df <- aggregate(steps ~ date, df, sum)
 head(pivot_df, 3)
-barplot(pivot_df$steps, main = "Total Steps per Day", col="red", ylab="# of steps")
-mean_df <- mean(pivot_df$steps)
+hist(pivot_df$steps, main = "Distribution of Total Steps per Day", col="red", xlab="# of steps")
+mean_df <- mean(pivot_df$steps, na.rm = T)
 print(paste("The MEAN of the total number of steps taken per day is ", mean_df,"(see green dotted line)."))
-abline(h = mean_df, lwd = 3, lty = 3, col = "green")
-median_df <- median(pivot_df$steps)
+abline(v = mean_df, lwd = 3, lty = 3, col = "green")
+median_df <- median(pivot_df$steps, na.rm = T)
 print(paste("The MEDIAN of the total number of steps taken per day is ", median_df,"(see blue dashed line)."))
-barplot(pivot_df$steps, main = "Total Steps per Day", col="red", ylab="# of steps")
-abline(h = median_df, lwd = 2, lty = 2, col = "blue")
+hist(pivot_df$steps, main = "Distribution of Total Steps per Day", col="red", ylab="# of steps")
+abline(v = median_df, lwd = 2, lty = 2, col = "blue")
 ```
 
 
@@ -42,24 +45,77 @@ Third part of assignment 1 - time series of average daily activities:
 
 1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
 ```{r}
-pivot_2_df <- aggregate(steps ~ interval, df, mean)
+par(mfcol = c(1,1))
+pivot_2_df <- aggregate(steps ~ interval, df, mean, na.omit=T)
 with(pivot_2_df, plot(interval, steps, type = "l"))
 ```
 
 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 ```{r}
 max_interval <- pivot_2_df[which.max(pivot_2_df$steps),]
+abline(v = max_interval$interval, lwd = 2, lty = 2, col = "blue")
 print(paste("The interval with the maximum number of average steps is", max_interval$interval,"and has", round(max_interval$steps, 1),"steps."))
 ```
 
 
 ## Imputing missing values
+Fourth part of assignment 1 - missing values:
 
+Note that there are a number of days/intervals where there are missing values (coded as NA). The presence of missing days may introduce bias into some calculations or summaries of the data.
+
+1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
 ```{r}
+t <- sum(!complete.cases(df))
+print(paste("The total number of rows with NAs is", t,"rows."))
+```
+
+2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+```{r}
+corrected_na <- df[is.na(df$steps),]
+#corrected_na$steps <- factor(corrected_na$steps, labels=pivot_2_df[,2])
+###### MAKE USE OF THE FACTOR ALGORYTHM INSTEAD
+for(i in 1:nrow(corrected_na)){
+  corrected_na[i,1] <- pivot_2_df[pivot_2_df$interval == corrected_na[i,3],2]
+}
+```
+
+3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+```{r}
+clean_df <- rbind(df[complete.cases(df),],corrected_na)
+clean_df <- clean_df[order(clean_df$date),]
+```
+
+4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+```{r}
+par(mfcol = c(1,2))
+pivot_clean_df <- aggregate(steps ~ date, clean_df, sum)
+hist(pivot_clean_df$steps, main = "Distribution of Total Steps per Day", col="red", xlab="# of steps")
+mean_clean_df <- mean(pivot_clean_df$steps)
+print(paste("The MEAN of the total number of steps taken per day is ", mean_clean_df,"(see green dotted line)."))
+abline(v = mean_clean_df, lwd = 3, lty = 3, col = "green")
+median_clean_df <- median(pivot_clean_df$steps)
+print(paste("The MEDIAN of the total number of steps taken per day is ", median_clean_df,"(see blue dashed line)."))
+hist(pivot_clean_df$steps, main = "Distribution of Total Steps per Day", col="red", ylab="# of steps")
+abline(v = median_clean_df, lwd = 2, lty = 2, col = "blue")
 ```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
 ```{r}
+# installing/loading the ggplot package, if needed:
+if(!require(ggplot2)) { install.packages("ggplot2"); require(ggplot2)} #load / install+load ggplot2
+
+weekend_days <- c("Saturday","Sunday")
+clean_df$weekend <- factor((weekdays(clean_df$date) %in% weekend_days), levels=c(T,F), labels = c("weekend","weekday"))
+pivot_weekend <- aggregate(interval ~ steps + weekend, clean_df, mean)
+g <- ggplot(data = pivot_weekend, aes(pivot_weekend$interval, pivot_weekend$steps))
+g <- g + geom_line()
+g <- g + facet_grid(weekend ~ .)
+g <- g + labs(title = "Activity Pattern Differences in weekdays vs. weekends")
+g <- g + labs(x = "Interval")
+g <- g + labs(y = "Number of steps")
+g <- g + scale_x_continuous(breaks=c(0,500,1000,1500,2000))
+g <- g + theme(axis.text.x = element_text(angle = 70, vjust = 0.5)) 
+g
 ```
