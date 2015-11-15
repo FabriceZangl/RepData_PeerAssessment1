@@ -5,60 +5,80 @@ output:
     keep_md: true
 ---
 
+## Objective of the assignment
+The objective of this assignment is to analyse the data of a personal activity monitoring device. It records the number of steps for a single individual at intervals of 5 minutes each, over a period of 61 days.
 
-## Loading and preprocessing the data
-First part of assignment 1 - Getting and Cleaning the data:
+### Getting the Data
+The data for this assignment can be downloaded from:
+https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip
+
+The features in this dataset are:
+- steps: Number of steps per interval,
+- date (x61): The date of recording in the format YYYY-MM-DD,
+- interval (x288): The number of the interval within the day,
+i.e. 17,568 observations in total.
+
+The dataset is a zipped comma-separated-value (CSV) file.
+
+### Loading and preprocessing the data
+First part of assignment 1 - Getting and Cleaning the data, includes the transformation of types to ease the use in later plots.
 ```{r}
-setwd("C:/Users/zangl.f/Box Sync/private/Coursera/Data Science/Data Scientist Specialization/05 Reproducible Research/Assignments/RepData_PeerAssessment1/")
-#url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
-#download.file(url, "Course5Assignment1.zip")
-#unzip("Course5Assignment1.zip")
+unzip("Course5Assignment1.zip")
 df <- read.csv("activity.csv", sep=",", na.strings = "NA", stringsAsFactors = F, colClasses = c(steps = "numeric", date = "character", interval = "numeric"))
 df$date <- as.Date(df$date, "%Y-%m-%d")
 df$steps <- as.double(df$steps)
 ```
 
 
-## What is mean total number of steps taken per day?
+### What is mean total number of steps taken per day?
 Second part of assignment 1 - Reporting on the total number of steps:
 
 - calculating the sum of steps per day
-- plotting them into a histogram
-- reporting the mean and median of the number of steps
 ```{r}
-par(mfcol = c(1,2))
 pivot_df <- aggregate(steps ~ date, df, sum)
-head(pivot_df, 3)
+```
+- plotting them into a histogram
+```{r}
 hist(pivot_df$steps, main = "Distribution of Total Steps per Day", col="red", xlab="# of steps")
+```
+
+- reporting the mean and median of the number of steps
+
+To do so, we first calculate the mean and median, associating them to a variable. We then use those variables to print out a statement with those two variables, and then also plot it into the above defined histogram. The result and visual show that there is a small difference between the median and the mean.
+```{r}
 mean_df <- mean(pivot_df$steps, na.rm = T)
-print(paste("The MEAN of the total number of steps taken per day is ", mean_df,"(see green dotted line)."))
-abline(v = mean_df, lwd = 3, lty = 3, col = "green")
 median_df <- median(pivot_df$steps, na.rm = T)
-print(paste("The MEDIAN of the total number of steps taken per day is ", median_df,"(see blue dashed line)."))
-hist(pivot_df$steps, main = "Distribution of Total Steps per Day", col="red", ylab="# of steps")
+print(paste("The MEAN of the total number of steps taken per day is ", mean_df,"(see green dotted line), and the MEDIAN is ", median_df,"(see blue dashed line)."))
+hist(pivot_df$steps, main = "Distribution of Total Steps per Day", col="red", xlab="# of steps")
+abline(v = mean_df, lwd = 3, lty = 3, col = "green")
 abline(v = median_df, lwd = 2, lty = 2, col = "blue")
 ```
 
 
-## What is the average daily activity pattern?
+### What is the average daily activity pattern?
 Third part of assignment 1 - time series of average daily activities:
 
-1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis).
+
+As above, we use the "aggregate" function, to pivot and summarize the data, using the Mean function, i.e. taking the average of steps. We then plot it into a time series using the base plotting library to visualize it.
 ```{r}
-par(mfcol = c(1,1))
 pivot_2_df <- aggregate(steps ~ interval, df, mean, na.omit=T)
 with(pivot_2_df, plot(interval, steps, type = "l"))
 ```
 
 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+To identify the maximum, as above, we first associate the calculated result to variable, that we then use for a printed statement as well as a plotting into the previous visual.
 ```{r}
 max_interval <- pivot_2_df[which.max(pivot_2_df$steps),]
-#abline(v = max_interval$interval, lwd = 2, lty = 2, col = "blue")
 print(paste("The interval with the maximum number of average steps is", max_interval$interval,"and has", round(max_interval$steps, 1),"steps."))
+with(pivot_2_df, plot(interval, steps, type = "l"))
+abline(v = max_interval$interval, lwd = 2, lty = 2, col = "blue")
+abline(h = max_interval$steps, lwd = 2, lty = 2, col = "red")
 ```
 
 
-## Imputing missing values
+### Imputing missing values
 Fourth part of assignment 1 - missing values:
 
 Note that there are a number of days/intervals where there are missing values (coded as NA). The presence of missing days may introduce bias into some calculations or summaries of the data.
@@ -70,45 +90,55 @@ print(paste("The total number of rows with NAs is", t,"rows."))
 ```
 
 2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+For the purpose of this exercise, we are re-using the average number of steps per interval, already available from a previous part of the assignment. We first create a subset of our dataframe, that contains only those rows where we have "NA" as missing values in steps.
+Using a for-loop, we then assign the average number of steps to the respective interval.
 ```{r}
 corrected_na <- df[is.na(df$steps),]
-#corrected_na$steps <- factor(corrected_na$steps, labels=pivot_2_df[,2])
-###### MAKE USE OF THE FACTOR ALGORYTHM INSTEAD
 for(i in 1:nrow(corrected_na)){
   corrected_na[i,1] <- pivot_2_df[pivot_2_df$interval == corrected_na[i,3],2]
 }
 ```
 
 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+To build this new dataset, we combine the subset of complete cases from the original dataframe with the just corrected dataframe to which we added the average number of steps. For ease of comparing the cleaned to the original dataframe, i.e. to see whether the "NA" records have correctly been filled, we re-order the new dataframe to be consistent with the original dataframe.
 ```{r}
 clean_df <- rbind(df[complete.cases(df),],corrected_na)
 clean_df <- clean_df[order(clean_df$date),]
 ```
 
 4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+Firstly, we pivot, summarize, plot in a histogram and calculate the mean as well as the median as we have done before, simply using the cleaned dataframe. 
 ```{r}
-par(mfcol = c(1,2))
 pivot_clean_df <- aggregate(steps ~ date, clean_df, sum)
 hist(pivot_clean_df$steps, main = "Distribution of Total Steps per Day", col="red", xlab="# of steps")
-mean_clean_df <- mean(pivot_clean_df$steps)
-print(paste("The MEAN of the total number of steps taken per day is ", mean_clean_df,"(see green dotted line)."))
-abline(v = mean_clean_df, lwd = 3, lty = 3, col = "green")
 median_clean_df <- median(pivot_clean_df$steps)
-print(paste("The MEDIAN of the total number of steps taken per day is ", median_clean_df,"(see blue dashed line)."))
-hist(pivot_clean_df$steps, main = "Distribution of Total Steps per Day", col="red", ylab="# of steps")
+mean_clean_df <- mean(pivot_clean_df$steps)
+abline(v = mean_clean_df, lwd = 3, lty = 3, col = "green")
 abline(v = median_clean_df, lwd = 2, lty = 2, col = "blue")
 ```
 
+Let's now compare before and after. We can see that there is a small difference but that in the grand scheme of things it is rather insignificant. Therefore, the NA values don't have much of an impact (under current assumtions).
+```{r}
+print(paste("The MEDIAN of the total number of steps taken per day is", median_clean_df,"compared to previously", median_df,". Similarely, the MEAN of the old dataset is", mean_df,"and therefore the same as in the new cleaned dataset:", mean_clean_df,"."))
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
 
+### Are there differences in activity patterns between weekdays and weekends?
+To answer this question, we first need to add a feature to distinguish between weekdays and weekends. Then, we pivot the dataframe, including the weekend informaiton.
+```{r}
+weekend_days <- c("Saturday","Sunday")
+clean_df$weekend <- factor((weekdays(clean_df$date) %in% weekend_days), levels=c(T,F), labels = c("weekend","weekday"))
+pivot_weekend <- aggregate(interval ~ steps + weekend, clean_df, mean)
+```
+
+We can now plot the two activity patterns into a timeline, as shown in the assignment description, seperating weekdays from weekends. We can see from the below plots, that the activity on average will start later on weekends, with less steps in the morning, but more steps in the afternoon.
 ```{r}
 # installing/loading the ggplot package, if needed:
 if(!require(ggplot2)) { install.packages("ggplot2"); require(ggplot2)} #load / install+load ggplot2
 
-weekend_days <- c("Saturday","Sunday")
-clean_df$weekend <- factor((weekdays(clean_df$date) %in% weekend_days), levels=c(T,F), labels = c("weekend","weekday"))
-pivot_weekend <- aggregate(interval ~ steps + weekend, clean_df, mean)
 g <- ggplot(data = pivot_weekend, aes(pivot_weekend$interval, pivot_weekend$steps))
 g <- g + geom_line()
 g <- g + facet_grid(weekend ~ .)
