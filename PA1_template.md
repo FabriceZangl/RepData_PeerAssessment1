@@ -170,7 +170,7 @@ To answer this question, we first need to add a feature to distinguish between w
 ```r
 weekend_days <- c("Saturday","Sunday")
 clean_df$weekend <- factor((weekdays(clean_df$date) %in% weekend_days), levels=c(T,F), labels = c("weekend","weekday"))
-pivot_weekend <- aggregate(interval ~ steps + weekend, clean_df, mean)
+pivot_weekend <- aggregate(steps ~ interval + weekend, clean_df, mean)
 ```
 
 We can now plot the two activity patterns into a timeline, as shown in the assignment description, seperating weekdays from weekends. We can see from the below plots, that the activity on average will start later on weekends, with less steps in the morning, but more steps in the afternoon.
